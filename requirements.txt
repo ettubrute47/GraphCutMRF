@@ -1,0 +1,6 @@
+networkx
+plotly
+ipykernel
+ipywidgets
+nbconvert
+pandas
