@@ -64,31 +64,46 @@ def visualize_graph(
     plt.show()
 
 
-def get_edge_traces(G: nx.Graph, pos):
+def get_edge_traces(G: nx.Graph, pos, show_max_flow=True):
     traces = []
+    flow, flow_dict = nx.maximum_flow(G, "source", "sink")
+    cut, partition = nx.minimum_cut(G, "source", "sink")
+
     for u, v, data in G.edges(data=True):
         x, y, z = zip(pos[u], pos[v])
         edge_trace = go.Scatter3d(
             x=x,
             y=y,
             z=z,
-            line=dict(width=data["capacity"] * 5, color="#888"),
-            opacity=0.4,
+            line=dict(width=data["capacity"] * 12, color="#44F"),
+            opacity=0.8,
             mode="lines",
         )
+        flow = max(
+            flow_dict.get(u, dict()).get(v, 0), flow_dict.get(v, dict()).get(u, 0)
+        )
+        print("Flow: ", flow)
+        perc = flow / data["capacity"]
+        clr = "#0F0"
+        width = flow * 8
+        if perc >= 1:
+            clr = "#F00"
+            width = flow * 12
+            if not show_max_flow:
+                continue
         traces.append(edge_trace)
         edge_trace = go.Scatter3d(
             x=x,
             y=y,
             z=z,
-            line=dict(width=data["capacity"] * 2, color="#FF0000"),
+            line=dict(width=width, color=clr),
             mode="lines",
         )
         traces.append(edge_trace)
     return traces
 
 
-def viz_graph_3d(G: nx.Graph):
+def viz_graph_3d(G: nx.Graph, true_image=None, show_max_flow=True):
     # 3D spring layout
     # pos is the same except source and sink are at different depths
 
@@ -101,13 +116,22 @@ def viz_graph_3d(G: nx.Graph):
         else:
             pos[node] = (z, x, y)
 
-    edge_traces = get_edge_traces(G, pos)
+    edge_traces = get_edge_traces(G, pos, show_max_flow=show_max_flow)
 
     node_x = []
     node_y = []
     node_z = []
+    node_colors = []
     for node in G.nodes():
         x, y, z = pos[node]
+        print(node)
+        clr = {"source": "#FFF", "sink": "#000"}.get(node)
+        if clr is None:
+            if true_image is None:
+                clr = "#FFF" if G.graph["image"][node] > 0.5 else "#000"
+            else:
+                clr = "#FFF" if true_image[node] > 0.5 else "#000"
+        node_colors.append(clr)
         node_x.append(x)
         node_y.append(y)
         node_z.append(z)
@@ -118,7 +142,7 @@ def viz_graph_3d(G: nx.Graph):
         z=node_z,
         mode="markers",
         hoverinfo="text",
-        marker=dict(size=10),
+        marker=dict(size=10, color=node_colors),
     )
 
     image = np.random.rand(3, 3)
@@ -141,7 +165,7 @@ def viz_graph_3d(G: nx.Graph):
             colorscale.append([position, color])
 
     # Create the x and y grid
-    N = 30
+    N = 50
     image = resize(
         G.graph["image"],
         (N, N),
@@ -150,9 +174,7 @@ def viz_graph_3d(G: nx.Graph):
         mode="edge",
         order=0,
     )
-
-    plt.imshow(image)
-    plt.show()
+    image = np.flipud(image)
     x_range = np.linspace(min(node_x) - 0.5, max(node_x) + 0.5, num=N)
     y_range = np.linspace(min(node_y) - 0.5, max(node_y) + 0.5, num=N)
     z_range = np.linspace(min(node_z) - 0.5, max(node_z) + 0.5, num=N)
@@ -163,7 +185,7 @@ def viz_graph_3d(G: nx.Graph):
     x_value = np.mean(node_x)  # This is a simplification, adjust accordingly
     X = np.full_like(Y, x_value)
 
-    colorscale = [[0, "rgb(0,0,0)"], [1, "rgb(255,255,255)"]]
+    colorscale = [[0, "rgba(0,0,0, 0.7)"], [1, "rgba(255,255,255, 0.7)"]]
     # how do I upscale a 3x3 image?
 
     # colorscale = [

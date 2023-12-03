@@ -121,6 +121,7 @@ import plotly.graph_objs as go
 from plotly.offline import iplot
 
 
-viz_graph_3d(G)
+viz_graph_3d(G, show_max_flow=True)
+# viz_graph_3d(G, true_image=np.array(true_image), show_max_flow=False)
 
 # %%
