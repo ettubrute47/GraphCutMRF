@@ -11,11 +11,14 @@ import seaborn as sns
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 from mrf_cut import segment_image
 from mrf_cut3 import segment_image_gco
 from mrf_cut5 import segment_image_igraph
 from mrf_cut2 import segment_image_maxflow
+
+# sns.set_style("darkgrid")
 
 
 def create_distance_array(image_shape, draw_history):
@@ -108,8 +111,9 @@ class ImageDrawApp:
         self.canvas.bind("<ButtonRelease-1>", lambda *args: self.update_canvas())
 
         # Set up the matplotlib plot
-        self.figure = Figure(figsize=(5, 4), dpi=100)
-        self.subplot = self.figure.add_subplot(111)
+        with sns.axes_style("darkgrid"):
+            self.figure = Figure(figsize=(5, 4), dpi=100)
+            self.subplot = self.figure.add_subplot(111)
 
         # Canvas for matplotlib plot
         self.plot_canvas = FigureCanvasTkAgg(self.figure, self.root)
@@ -226,7 +230,9 @@ class ImageDrawApp:
             )[0]
             histogram_black = histogram_black.astype(float) / histogram_black.sum()
             self.subplot.plot(histogram_black)
-        self.subplot.set_title("Intensity distributions")
+        self.subplot.set_title("Intensity Distributions")
+        self.subplot.set_xlabel("Intensity")
+        self.subplot.set_ylabel("Density")
         self.plot_canvas.draw()
 
     def draw_plot(self, clear=True):
@@ -234,7 +240,9 @@ class ImageDrawApp:
             self.subplot.clear()
         self.subplot.plot(self.intens, self.foreground_pdf)
         self.subplot.plot(self.intens, self.background_pdf)
-        self.subplot.set_title("Intensity distributions")
+        self.subplot.set_title("Intensity Distributions")
+        self.subplot.set_xlabel("Intensity")
+        self.subplot.set_ylabel("Density")
         self.plot_canvas.draw()
 
     def update_plot(self, *args):
@@ -304,7 +312,7 @@ class ImageDrawApp:
             # return 2 + 12 * abs(float(val1) - float(val2)) / 255.0
             p_agree = 1 - abs(float(val1) - float(val2)) / 255.0
             assert p_agree <= 1 and p_agree >= 0
-            return 2 + 3 * (p_agree)
+            return 1  # + 1 * (p_agree)
             if p_agree < 0.5:
                 # then I'd technically want to penalize for them agreeing, but I'll just not reward them
                 return 0
@@ -314,15 +322,28 @@ class ImageDrawApp:
             return p
 
         print("Getting ready to segment")
+
+        pos, neg = unary(grayscale_image)
+        mle = pos > neg
+        plt.imshow(mle.reshape(grayscale_image.shape))
+        plt.show()
+
         estimate = segment_image_igraph(grayscale_image, unary, pairwise)
+
+        plt.imshow(estimate)
+        plt.show()
         # Label the connected components
         labeled_array, num_features = label(estimate)
 
+        plt.imshow(labeled_array)
+        plt.show()
         self.draw_plot()
 
-        cleaned_estimate = np.isin(
-            labeled_array, np.unique(labeled_array[distance_mask == 1])
-        )
+        print(np.unique(labeled_array[distance_mask == 1]))
+        lbl = np.argmax(np.bincount(labeled_array[distance_mask == 1]))
+        cleaned_estimate = labeled_array == lbl
+        # plt.imshow(cleaned_estimate)
+        # plt.show()
 
         # # Find the size of each connected component
         # sizes = ndi_sum(estimate, labeled_array, range(num_features + 1))
@@ -334,6 +355,8 @@ class ImageDrawApp:
 
         # # Create a new mask where we keep only the largest connected component
         # cleaned_estimate = labeled_array == largest_label
+        plt.imshow(grayscale_image * cleaned_estimate)
+        plt.show()
         self.set_overlay_mask(cleaned_estimate)
 
     def initialize_plot(self):
@@ -342,7 +365,12 @@ class ImageDrawApp:
         histogram = histogram.astype(float) / histogram.sum()
         self.subplot.clear()
         self.subplot.plot(histogram)
-        self.subplot.set_title("Intensity distributions")
+        self.subplot.set_title("Intensity Distributions")
+        self.subplot.set_xlabel("Intensity")
+        self.subplot.set_ylabel("Density")
+        self.subplot.set_xticklabels(
+            [f"{x:.1f}" for x in self.subplot.get_xticks() / 255]
+        )
         self.plot_canvas.draw()
 
     def plot_histogram(self):
