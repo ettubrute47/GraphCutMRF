@@ -6,6 +6,7 @@ import matplotlib
 
 from scipy import stats
 from scipy.ndimage import label, sum as ndi_sum
+import seaborn as sns
 
 matplotlib.use("TkAgg")
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -61,6 +62,7 @@ class ImageDrawApp:
         self.original_image = Image.open(image_path)
         self.image = self.resize_image(self.original_image, max_size)
         self.image = self.image.convert("L").convert("RGBA")
+        self.grayscale = np.array(self.image.convert("L"))
         self.image_shape = self.image.size[::-1]
         self.current_color = primary_color
         self.primary_color = primary_color
@@ -163,10 +165,10 @@ class ImageDrawApp:
 
     def paint(self, event):
         # Record the position where the user is drawing
-        radius = 1
+        radius = 5
         x1, y1 = (event.x - radius), (event.y - radius)
         x2, y2 = (event.x + radius), (event.y + radius)
-        self.draw_history.append((self.draw_mode, x1, y1, x2, y2))
+        self.draw_history.append((self.draw_mode, event.x, event.y))
         self.canvas.create_oval(
             x1, y1, x2, y2, fill=self.current_color, outline=self.current_color
         )
@@ -239,7 +241,7 @@ class ImageDrawApp:
         distance_mask = self.draw_distance < 5
         if not np.any(distance_mask == 1):
             return
-        grayscale_image = np.array(self.image.convert("L"))
+        grayscale_image = np.array(self.grayscale)
         foreground_mask = (distance_mask == 1) | (self.mask == 1)
         foreground_intensities = grayscale_image[foreground_mask]
         background_intensities = grayscale_image[~foreground_mask]

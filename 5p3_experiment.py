@@ -63,11 +63,13 @@ def experiment_binary(b, perc=0.1, proba_u=0, num_trials=100):
 
         def unary(val, idx):
             # val = bar_ref[idx]
-            if np.random.rand() < proba_u:
-                val = bar_ref[idx]
+            # if np.random.rand() < proba_u:
+            #     val = bar_ref[idx]
             p = 0.5
             bp = perc
-            return val * bp, (1 - val) * (1 - bp)
+            # I can do val + bar_ref[idx]
+            eff_val = val * (1 - proba_u) + bar_ref[idx] * proba_u
+            return eff_val * bp, (1 - eff_val) * (1 - bp)
             if val > noisy_mean:
                 return 1 - noisy_mean * p, noisy_mean * p
             return noisy_mean * p, 1 - noisy_mean * p
@@ -76,7 +78,7 @@ def experiment_binary(b, perc=0.1, proba_u=0, num_trials=100):
             noisy, unary_potential_fnc=unary, pairwise_potential_fnc=pairwise
         )
         losses.append(loss(map_bar))
-    return np.array(losses).mean()
+    return np.array(losses)
 
 
 if __name__ == "__main__":
@@ -86,6 +88,7 @@ if __name__ == "__main__":
     result_array = []
     with mp.Pool(4) as pool:
         for pu in probas:
+            print(pu)
             results = pool.map(
                 partial(experiment_binary, 2.0, proba_u=pu, num_trials=100), percs
             )
